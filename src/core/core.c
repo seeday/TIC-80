@@ -347,6 +347,11 @@ const tic_script_config* tic_core_script_config(tic_mem* memory)
         return getSquirrelScriptConfig();
 #endif
 
+#if defined(TIC_BUILD_WITH_ECL)
+    if (compareMetatag(code, "script", "ecl", getEclScriptConfig()->singleComment))
+      return getEclScriptConfig();
+#endif
+
 #if defined(TIC_BUILD_WITH_LUA)
     return getLuaScriptConfig();
 #elif defined(TIC_BUILD_WITH_JS)
@@ -355,6 +360,8 @@ const tic_script_config* tic_core_script_config(tic_mem* memory)
     return getWrenScriptConfig();
 #elif defined(TIC_BUILD_WITH_SQUIRREL)
     return getSquirrelScriptConfig();
+#elif defined(TIC_BUILD_WITH_ECL)
+    return getEclScriptConfig();
 #endif
 }
 

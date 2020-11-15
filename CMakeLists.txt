@@ -5,6 +5,9 @@ set(VERSION_MINOR 90)
 set(VERSION_REVISION 0)
 set(VERSION_STATUS "-dev")
 
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+
 find_package(Git)
 if(Git_FOUND)
     execute_process(
@@ -107,7 +110,7 @@ if (BAREMETALPI)
     #set(CMAKE_C_FLAGS " -DTIC_BUILD_WITH_FENNEL -DTIC_BUILD_WITH_MOON -DTIC_BUILD_WITH_JS -DTIC_BUILD_WITH_WREN -DTIC_BUILD_WITH_LUA -DLUA_32BITS -std=c99 -march=armv7-a+neon-vfpv4  -D AARCH=32 -D __circle__ -D BAREMETALPI  --specs=nosys.specs -O3 -mabi=aapcs -marm  -mfloat-abi=hard -mfpu=neon-vfpv4  -D__DYNAMIC_REENT__")
     # For RPI3
     # investigate -funsafe-math-optimizations and -march=armv8-a+crc -mcpu=cortex-a53
-    set(CMAKE_C_FLAGS " -DTIC_BUILD_WITH_FENNEL -DTIC_BUILD_WITH_MOON -DTIC_BUILD_WITH_JS -DTIC_BUILD_WITH_WREN -DTIC_BUILD_WITH_LUA -DLUA_32BITS -std=c99 -march=armv8-a  -D AARCH=32 -mtune=cortex-a53  -D __circle__ -D BAREMETALPI  --specs=nosys.specs -O3 -marm -mfloat-abi=hard -mfpu=neon-fp-armv8 -funsafe-math-optimizations -D__DYNAMIC_REENT__")
+    set(CMAKE_C_FLAGS " -DTIC_BUILD_WITH_LUA -DTIC_BUILD_WITH_FENNEL -DTIC_BUILD_WITH_MOON -DTIC_BUILD_WITH_JS -DTIC_BUILD_WITH_WREN -DTIC_BUILD_WITH_LUA -DLUA_32BITS -std=c99 -march=armv8-a  -D AARCH=32 -mtune=cortex-a53  -D __circle__ -D BAREMETALPI  --specs=nosys.specs -O3 -marm -mfloat-abi=hard -mfpu=neon-fp-armv8 -funsafe-math-optimizations -D__DYNAMIC_REENT__")
 
     set(CMAKE_C_COMPILER ${TOOLCHAIN_PREFIX}gcc)
     set(CMAKE_ASM_COMPILER ${CMAKE_C_COMPILER})
@@ -302,6 +305,26 @@ target_include_directories(squirrel PRIVATE ${SQUIRREL_DIR}/squirrel)
 target_include_directories(squirrel PRIVATE ${SQUIRREL_DIR}/sqstdlib)
 
 ################################
+# ECL
+################################
+
+
+find_package(ECL REQUIRED)
+include_directories(${ECL_INCLUDE_DIR})
+
+set(ECL_API_SOURCES src/api/eclapi.lisp src/api/ecl.c)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libeclapi.a
+   COMMAND ${ECL_BIN_PATH} --norc
+   #--eval '(require :asdf)'
+   ## Remember to end path with / here. Notably ....src/lisp/, not ....src/lisp
+   #--eval '(push \"${CMAKE_CURRENT_SOURCE_DIR}/src/api/\" asdf:*central-registry*)'
+   #--eval '(asdf:make-build :eclapi :type :IMAGE :move-here \"${CMAKE_CURRENT_BINARY_DIR}\" :init-name \"init_lib_ECL_API\")'
+   --eval '(compile-file \"${CMAKE_CURRENT_SOURCE_DIR}/src/api/eclapi.lisp\" :system-p t :output-file \"${CMAKE_CURRENT_BINARY_DIR}/eclapi.o\")'
+   --eval '(c:build-static-library \"eclapi\" :lisp-files (list \"${CMAKE_CURRENT_BINARY_DIR}/eclapi.o\") :init-name \"init_eclapi\")'
+   --eval '(quit)'
+   DEPENDS ${ECL_API_SOURCES})
+add_custom_target(eclapi ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libeclapi.a)
+################################
 # GIFLIB
 ################################
 
@@ -348,7 +371,8 @@ set(TIC80CORE_SRC
     ${TIC80CORE_DIR}/api/lua.c 
     ${TIC80CORE_DIR}/api/wren.c 
     ${TIC80CORE_DIR}/api/squirrel.c
-    ${TIC80CORE_DIR}/ext/gif.c     
+    ${TIC80CORE_DIR}/api/ecl.c
+    ${TIC80CORE_DIR}/ext/gif.c
     ${TIC80CORE_DIR}/tic.c
     ${TIC80CORE_DIR}/cart.c
     ${TIC80CORE_DIR}/tools.c 
@@ -357,7 +381,8 @@ set(TIC80CORE_SRC
 
 add_library(tic80core STATIC ${TIC80CORE_SRC})
 
-target_include_directories(tic80core 
+add_dependencies(tic80core eclapi)
+target_include_directories(tic80core
     PRIVATE 
         ${THIRDPARTY_DIR}/moonscript
         ${THIRDPARTY_DIR}/fennel
@@ -365,7 +390,7 @@ target_include_directories(tic80core
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/src)
 
-target_link_libraries(tic80core lua lpeg wren squirrel giflib blipbuf duktape zlib)
+target_link_libraries(tic80core lua lpeg wren squirrel ${ECL_LIBRARIES} ${CMAKE_CURRENT_BINARY_DIR}/libeclapi.a giflib blipbuf duktape zlib)
 
 if(LINUX)
     target_link_libraries(tic80core m)

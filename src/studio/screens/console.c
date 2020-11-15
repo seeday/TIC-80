@@ -81,6 +81,10 @@ typedef enum
     SquirrelScript,
 #endif
 
+#if defined(TIC_BUILD_WITH_ECL)
+    EclScript,
+#endif
+
 } ScriptLang;
 
 #if defined(__TIC_WINDOWS__) || defined(__TIC_LINUX__) || defined(__TIC_MACOSX__)
@@ -136,6 +140,10 @@ static const char DefaultWrenTicPath[] = TIC_LOCAL_VERSION "default_wren.tic";
 
 #if defined(TIC_BUILD_WITH_SQUIRREL)
 static const char DefaultSquirrelTicPath[] = TIC_LOCAL_VERSION "default_squirrel.tic";
+#endif  
+
+#if defined(TIC_BUILD_WITH_ECL)
+static const char DefaultEclTicPath[] = TIC_LOCAL_VERSION "default_ecl.tic";
 #endif  
 
 static const char* getName(const char* name, const char* ext)
@@ -504,7 +512,11 @@ static void* getDemoCart(Console* console, ScriptLang script, s32* size)
 
 #if defined(TIC_BUILD_WITH_SQUIRREL)
         case SquirrelScript: strcpy(path, DefaultSquirrelTicPath); break;
-#endif          
+#endif
+
+#if defined(TIC_BUILD_WITH_ECL)
+        case EclScript: strcpy(path, DefaultEclTicPath); break;
+#endif
         }
 
         void* data = fsLoadRootFile(console->fs, path, size);
@@ -603,6 +615,20 @@ static void* getDemoCart(Console* console, ScriptLang script, s32* size)
         }
         break;
 #endif /* defined(TIC_BUILD_WITH_SQUIRREL) */
+
+#if defined(TIC_BUILD_WITH_ECL)
+    case EclScript:
+      {
+        static const u8 EclDemoRom[] =
+          {
+#include "../build/assets/ecldemo.tic.dat"
+          };
+
+        demo = EclDemoRom;
+        romSize = sizeof EclDemoRom;
+      }
+      break;
+#endif /* defined(TIC_BUILD_WITH_ECL) */
     }
 
     u8* data = calloc(1, sizeof(tic_cartridge));
@@ -660,6 +686,11 @@ static void onConsoleLoadDemoCommandConfirmed(Console* console, const char* para
 #if defined(TIC_BUILD_WITH_SQUIRREL)
     if(strcmp(param, DefaultSquirrelTicPath) == 0)
         data = getDemoCart(console, SquirrelScript, &size);
+#endif
+
+#if defined(TIC_BUILD_WITH_ECL)
+    if(strcmp(param, DefaultEclTicPath) == 0)
+      data = getDemoCart(console, EclScript, &size);
 #endif
 
     const char* name = getCartName(param);
@@ -763,6 +794,9 @@ static void onConsoleLoadCommandConfirmed(Console* console, const char* param)
 
             if(!fsExistsFile(console->fs, name))
                 name = getName(param, PROJECT_SQUIRREL_EXT);
+
+            if(!fsExistsFile(console->fs, name))
+              name = getName(param, PROJECT_ECL_EXT);
 
             void* data = fsLoadFile(console->fs, name, &size);
 
@@ -960,6 +994,14 @@ static void onConsoleNewCommandConfirmed(Console* console, const char* param)
             done = true;
         }
 #endif          
+
+#if defined(TIC_BUILD_WITH_ECL)
+        if(strcmp(param, "ecl") == 0)
+          {
+            loadDemo(console, EclScript);
+            done = true;
+          }
+#endif
 
         if(!done)
         {

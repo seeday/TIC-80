@@ -183,6 +183,10 @@ typedef struct
         struct SQVM* squirrel;
 #endif
 
+#if defined(TIC_BUILD_WITH_ECL)
+         struct cl_env_struct * ecl;
+#endif
+
     };
 
     struct
@@ -214,6 +218,10 @@ typedef struct
 
 #if defined(TIC_BUILD_WITH_SQUIRREL)
 const tic_script_config* getSquirrelScriptConfig();
+#endif
+
+#if defined(TIC_BUILD_WITH_ECL)
+const tic_script_config* getEclScriptConfig();
 #endif
 
 #if defined(TIC_BUILD_WITH_LUA)
