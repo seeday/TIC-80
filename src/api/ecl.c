@@ -11,9 +11,8 @@
 extern void init_eclapi(cl_object);
 
 static const char *const EclKeywords[] = {
-    "defun", "setq", "setf", "defmacro", "if", "let", "not", "lambda", "flet",
+    "defun", "setq", "setf", "defmacro", "if", "let", "not", "lambda", "flet", "car", "cdr", "cadr", "cons", "nth-value"
 };
-
 static const char *const FakeArgv[] = {"tic80"};
 
 static bool initEcl(tic_mem *tic, const char *code) {
@@ -24,7 +23,7 @@ static bool initEcl(tic_mem *tic, const char *code) {
   ecl_init_module(NULL, init_eclapi);
   core->ecl = ecl_process_env();
   ecl_defvar(ecl_make_symbol("*TICCORE*", "CL-USER"),
-             ecl_make_uint64_t((uint64_t)core->ecl));
+             ecl_make_uint64_t((uint64_t)core));
   printf("ECL INIT PASSED, TRYING EVAL\n");
 
   ECL_CATCH_ALL_BEGIN(core->ecl) {
@@ -81,11 +80,27 @@ static const tic_outline_item *getEclOutline(const char *code, s32 *size) {
   return NULL;
 }
 
-void eclApiCls(int color) {
+//#define ECL_FN_DEF(NAME, argc, ret, ticp, args...) { \
+//  ret ecl_api_ ## NAME ## (args) { \
+//    tic_mem *tic = (tic_mem *)ecl_to_uint64_t(ecl_symbol_value(ecl_make_symbol("*TICCORE*", "CL-USER"))); \
+//    tic_api_#name#(tic, args); \
+//  } \
+//  }
+//
+////TIC_API_LIST(ECL_FN_DEF)
+// ECL_FN_DEF(print, 7, s32, tic_mem*, const char* text)
+//#undef ECL_FN_DEF
+
+void ecl_api_cls(int color) {
   tic_mem *tic = (tic_mem *)ecl_to_uint64_t(
       ecl_symbol_value(ecl_make_symbol("*TICCORE*", "CL-USER")));
-  printf("Lisp clsing with color %d\n", color);
   tic_api_cls(tic, color);
+}
+
+void ecl_api_line(s32 x1, s32 y1, s32 x2, s32 y2, u8 color) {
+  tic_mem *tic = (tic_mem *)ecl_to_uint64_t(
+      ecl_symbol_value(ecl_make_symbol("*TICCORE*", "CL-USER")));
+  tic_api_line(tic, x1, y1, x2, y2, color);
 }
 
 static void evalEcl(tic_mem *tic, const char *code) {

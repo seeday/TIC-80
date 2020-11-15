@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.3)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(VERSION_MAJOR 0)
 set(VERSION_MINOR 90)
@@ -6,6 +7,8 @@ set(VERSION_REVISION 0)
 set(VERSION_STATUS "-dev")
 
 set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_C_FLAGS_DEBUG "-ggdb")
+set(CMAKE_CXX_FLAGS_DEBUG "-ggdb")
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 find_package(Git)
@@ -20,7 +23,7 @@ if(Git_FOUND)
     string(LENGTH "${RESULT_STRING}" LENGTH_RESULT_STRING)
 
     if(${LENGTH_RESULT_STRING} EQUAL 0)
-        
+
         execute_process(
             COMMAND ${GIT_EXECUTABLE} rev-list HEAD --count
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -308,17 +311,20 @@ target_include_directories(squirrel PRIVATE ${SQUIRREL_DIR}/sqstdlib)
 # ECL
 ################################
 
-
+#set(ECL_INCLUDE_DIR vendor/ecl/build)
 find_package(ECL REQUIRED)
 include_directories(${ECL_INCLUDE_DIR})
+set(LD_LIBRARY_PATH ${ECL_INCLUDE_DIR})
+set(ECL_BIN_PATH ${ECL_INCLUDE_DIR}/bin/ecl)
 
 set(ECL_API_SOURCES src/api/eclapi.lisp src/api/ecl.c)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libeclapi.a
-   COMMAND ${ECL_BIN_PATH} --norc
+   #COMMAND ${ECL_BIN_PATH} --norc
    #--eval '(require :asdf)'
    ## Remember to end path with / here. Notably ....src/lisp/, not ....src/lisp
    #--eval '(push \"${CMAKE_CURRENT_SOURCE_DIR}/src/api/\" asdf:*central-registry*)'
    #--eval '(asdf:make-build :eclapi :type :IMAGE :move-here \"${CMAKE_CURRENT_BINARY_DIR}\" :init-name \"init_lib_ECL_API\")'
+   COMMAND ecl --norc
    --eval '(compile-file \"${CMAKE_CURRENT_SOURCE_DIR}/src/api/eclapi.lisp\" :system-p t :output-file \"${CMAKE_CURRENT_BINARY_DIR}/eclapi.o\")'
    --eval '(c:build-static-library \"eclapi\" :lisp-files (list \"${CMAKE_CURRENT_BINARY_DIR}/eclapi.o\") :init-name \"init_eclapi\")'
    --eval '(quit)'

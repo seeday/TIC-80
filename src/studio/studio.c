@@ -2059,10 +2059,11 @@ System* getSystem()
 
 bool hasProjectExt(const char* name)
 {
-    return tic_tool_has_ext(name, PROJECT_LUA_EXT)
-        || tic_tool_has_ext(name, PROJECT_MOON_EXT)
-        || tic_tool_has_ext(name, PROJECT_JS_EXT)
-        || tic_tool_has_ext(name, PROJECT_WREN_EXT)
-        || tic_tool_has_ext(name, PROJECT_SQUIRREL_EXT)
-        || tic_tool_has_ext(name, PROJECT_FENNEL_EXT);
+  return tic_tool_has_ext(name, PROJECT_LUA_EXT) ||
+         tic_tool_has_ext(name, PROJECT_MOON_EXT) ||
+         tic_tool_has_ext(name, PROJECT_JS_EXT) ||
+         tic_tool_has_ext(name, PROJECT_WREN_EXT) ||
+         tic_tool_has_ext(name, PROJECT_SQUIRREL_EXT) ||
+         tic_tool_has_ext(name, PROJECT_ECL_EXT) ||
+         tic_tool_has_ext(name, PROJECT_FENNEL_EXT);
 }
