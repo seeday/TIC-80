@@ -1,8 +1,10 @@
 (defpackage :tic80
   (:use :common-lisp)
   (:shadow print)
-  (:export :cls :line :print :pix :spr :rect :rectb :circ :circb))
+  (:export :cls :line :spr :print :pix :rect :rectb :circ :circb :btn :btnp :tri))
 (in-package :tic80)
+
+(declaim (optimize (debug 3)))
 
 (defvar *TICCORE*)
 
@@ -47,24 +49,25 @@
 (ffi:clines "extern void tic_api_fset(void* tic, int32_t index, uint8_t flag, bool value);")
 ;; however I've got no clue how to generate these without parsing C or something
 
+
 (defun wrap-colorkey (c)
   (let* ((c (if (consp c) c (list c)))
          (arr (ffi:allocate-foreign-object :byte (length c))))
-    (loop for v in c for i from 0 do (setf (ffi:deref-array arr (* :byte) i) v))
-    arr))
+    (loop for v in c for i from 0 do (setf (ffi:deref-array arr '(* :byte) i) v))
+    (values arr (length c))))
 
 (defun print (text &key (x 0) (y 0) (color 15) (fixed nil) (scale 1) (alt nil))
-  (check-type text string)
-  (ffi:with-cstring (cstr text)
+  (ffi:with-cstring (cstr (format nil "~a" text))
     (ffi:c-inline (*TICCORE* cstr x y color fixed scale alt)
                   (:int :cstring :int :int :byte :bool :int :bool)
-                  :int "tic_api_print(#0, #1, #2, #3, #4, #5, #6, #7);")))
+                  :int "tic_api_print(#0, #1, #2, #3, #4, #5, #6, #7)"
+                  :one-liner t)))
 
 (defun cls (color)
   (ffi:c-inline (*TICCORE* color)
                 (:int :byte)
                 :void "tic_api_cls(#0, #1);" :one-liner t))
-(defun pix (x y color get)
+(defun pix (x y color &key (get nil))
   (ffi:c-inline (*TICCORE* x y color get)
                 (:int :int :int :byte :bool)
                 :byte "tic_api_pix(#0, #1, #2, #3, #4);"))
@@ -85,16 +88,27 @@
                 :void "tic_api_rectb(#0, #1, #2, #3, #4, #5);"))
 
 (defun spr (index x y &key (colorkey -1) (scale 1) (flip 0) (rotate 0) (w 1) (h 1))
-  (let ((ck (wrap-colorkey colorkey)))
-    (ffi:c-inline (*TICCORE* index x y w h ck (length ck) scale flip rotate)
-                  (:int :int :int :int :int :int (* :byte) :int :int :int :int)
+  (multiple-value-bind (ck len) (wrap-colorkey colorkey)
+    (ffi:c-inline (*TICCORE* index x y w h (ffi:pointer-address ck) len scale flip rotate)
+                  (:int :int :int :int :int :int :int :int :int :int :int)
                   :void "tic_api_spr(#0, #1, #2, #3, #4, #5, #6, #7, #8, #9, #A);")))
 
+(defun btn (id)
+  (ffi:c-inline (*TICCORE* id)
+                (:int :int)
+                :int "tic_api_btn(#0, #1)"
+                :one-liner t))
+
+(defun btnp (id &key (hold 0) (period 0))
+  (ffi:c-inline (*TICCORE* id hold period)
+                (:int :int :int :int)
+                :int "tic_api_btnp(#0, #1, #2, #3)"
+                :one-liner t))
+
 (defun ticmap (x y &key (w 30) (h 18) (sx 0) (sy 0) (colorkey -1) (scale 1) (remap nil))
-  (let ((ck (wrap-colorkey colorkey))
-        (data nil)) ; this is an object that you can pass to the callback fn
-    (ffi:c-inline (*TICCORE* x y w h sx sy ck (length ck) scale remap data)
-                  (:int :int :int :int :int :int :int (* :byte) :int :int (* :void) (* :void))
+  (multiple-value-bind (ck len) (wrap-colorkey colorkey)
+    (ffi:c-inline (*TICCORE* x y w h sx sy (ffi:pointer-address ck) len scale remap nil)
+                  (:int :int :int :int :int :int :int :int :int :int (* :void) (* :void))
                   :void "tic_api_map(#0, #1, #2, #3, #4, #5, #6, #7, #8, #9, #A, #B);")))
 
 (defun circ (x y r color)
@@ -106,3 +120,8 @@
   (ffi:c-inline (*TICCORE* x y r color)
                 (:int :int :int :int :byte)
                 :void "tic_api_circb(#0, #1, #2, #3, #4);"))
+
+(defun tri (x1 y1 x2 y2 x3 y3 color)
+  (ffi:c-inline (*TICCORE* x1 y1 x2 y2 x3 y3 color)
+                (:int :int :int :int :int :int :int :int)
+                :void "tic_api_tri(#0, #1, #2, #3, #4, #5, #6, #7);"))

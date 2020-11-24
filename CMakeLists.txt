@@ -7,9 +7,9 @@ set(VERSION_REVISION 0)
 set(VERSION_STATUS "-dev")
 
 set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_C_FLAGS_DEBUG "-ggdb")
-set(CMAKE_CXX_FLAGS_DEBUG "-ggdb")
-set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+set(CMAKE_C_FLAGS_DEBUG "-ggdb -fno-omit-frame-pointer")
+set(CMAKE_CXX_FLAGS_DEBUG "-ggdb -fno-omit-frame-pointer")
+set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_SOURCE_DIR}/cmake/")
 
 find_package(Git)
 if(Git_FOUND)
@@ -54,17 +54,21 @@ endif()
 set(BUILD_TOUCH_INPUT_DEFAULT ${ANDROID})
 
 option(BUILD_SDL "SDL Enabled" ON)
-option(BUILD_SDLGPU "SDL GPU Enabled" OFF)
-option(BUILD_SOKOL "Sokol Enabled" OFF)
+option(BUILD_SDLGPU "SDL GPU Enabled" ON)
+option(BUILD_SOKOL "Sokol Enabled" ON)
 option(BUILD_LIBRETRO "libretro Enabled" ${BUILD_LIBRETRO_DEFAULT})
 option(BUILD_DEMO_CARTS "Demo Carts Enabled" ${BUILD_DEMO_CARTS_DEFAULT})
-option(BUILD_PRO "Build PRO version" FALSE)
+option(BUILD_PRO "Build PRO version" TRUE)
 option(BUILD_PLAYER "Build standalone players" ${BUILD_PLAYER_DEFAULT})
 option(BUILD_TOUCH_INPUT "Build with touch input support" ${BUILD_TOUCH_INPUT_DEFAULT})
 
 if(NOT BUILD_SDL)
     set(BUILD_SDLGPU OFF)
 endif()
+
+set(BUILD_SOKOL ON)
+set(BUILD_PRO TRUE)
+set(BUILD_SDLGPU ON)
 
 message("BUILD_SDLGPU: ${BUILD_SDLGPU}")
 message("BUILD_TOUCH_INPUT: ${BUILD_TOUCH_INPUT}")
@@ -311,19 +315,24 @@ target_include_directories(squirrel PRIVATE ${SQUIRREL_DIR}/sqstdlib)
 # ECL
 ################################
 
-#set(ECL_INCLUDE_DIR vendor/ecl/build)
-find_package(ECL REQUIRED)
-include_directories(${ECL_INCLUDE_DIR})
-set(LD_LIBRARY_PATH ${ECL_INCLUDE_DIR})
-set(ECL_BIN_PATH ${ECL_INCLUDE_DIR}/bin/ecl)
+set(ECL_BUILD_DIR ${THIRDPARTY_DIR}/ecl/build)
+set(ECL_LIBS ${ECL_BUILD_DIR}/libeclapi.a ${ECL_BUILD_DIR}/libeclgc.a)
+set(ECL_BIN ${ECL_BUILD_DIR}/bin/ecl)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBFFI REQUIRED libffi)
+find_package(GMP REQUIRED)
 
 set(ECL_API_SOURCES src/api/eclapi.lisp src/api/ecl.c)
+# TODO: use this instead so we can have dependencies
+# (asdf:make-build :eclapi :type :static-library :monolithic t :init-name "init_eclapi" :move-here "./") 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libeclapi.a
-   #COMMAND ${ECL_BIN_PATH} --norc
+   #COMMAND ${ECL_BIN} --norc
    #--eval '(require :asdf)'
+   #--eval '(setf c::*compile-in-constants* t)'
    ## Remember to end path with / here. Notably ....src/lisp/, not ....src/lisp
    #--eval '(push \"${CMAKE_CURRENT_SOURCE_DIR}/src/api/\" asdf:*central-registry*)'
-   #--eval '(asdf:make-build :eclapi :type :IMAGE :move-here \"${CMAKE_CURRENT_BINARY_DIR}\" :init-name \"init_lib_ECL_API\")'
+   #--eval '(asdf:make-build :eclapi :type :static-library :move-here \"${CMAKE_CURRENT_BINARY_DIR}\" :init-name \"init_lib_ECL_API\")'
    COMMAND ecl --norc
    --eval '(compile-file \"${CMAKE_CURRENT_SOURCE_DIR}/src/api/eclapi.lisp\" :system-p t :output-file \"${CMAKE_CURRENT_BINARY_DIR}/eclapi.o\")'
    --eval '(c:build-static-library \"eclapi\" :lisp-files (list \"${CMAKE_CURRENT_BINARY_DIR}/eclapi.o\") :init-name \"init_eclapi\")'
@@ -396,7 +405,7 @@ target_include_directories(tic80core
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/src)
 
-target_link_libraries(tic80core lua lpeg wren squirrel ${ECL_LIBRARIES} ${CMAKE_CURRENT_BINARY_DIR}/libeclapi.a giflib blipbuf duktape zlib)
+      target_link_libraries(tic80core lua lpeg wren squirrel ${CMAKE_CURRENT_BINARY_DIR}/libeclapi.a giflib blipbuf duktape zlib ecl gmp ${LIBFFI_LINK_LIBRARIES})
 
 if(LINUX)
     target_link_libraries(tic80core m)

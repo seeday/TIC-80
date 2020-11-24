@@ -11,7 +11,7 @@
 extern void init_eclapi(cl_object);
 
 static const char *const EclKeywords[] = {
-    "defun",  "setq", "setf", "defmacro", "if",   "let",  "not",
+  "defun",  "defvar", "defconstant", "setq", "setf", "defmacro", "if",   "let",  "not",
     "lambda", "flet", "car",  "cdr", "cadr", "cons", "nth-value"};
 static const char *const FakeArgv[] = {"tic80"};
 

@@ -4,7 +4,7 @@ stdenv.mkDerivation {
   name = "tic80";
   src = ./.;
 
-  buildInputs = [cmake pkgconfig ecl doxygen gtk3 xorg.libXext pcre];
+  buildInputs = [cmake pkgconfig ecl gtk3 xorg.libXext pcre doxygen graphviz libGLU alsaLib];
   configurePhase = ''
     cd build
     cmake ..
